@@ -37,6 +37,6 @@ public class Payment
     /// <summary>
     /// Total amount after applying any type of discount
     /// </summary>
-    public decimal TotalAmount { get => Amount - Discount.Value; }
+    public decimal TotalAmount { get => Amount - Discount.GetDiscountFor(Amount); }
     #endregion
 }

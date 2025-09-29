@@ -30,6 +30,6 @@ public class Discount
     /// </summary>
     /// <param name="baseAmount"></param>
     /// <returns></returns>
-    public decimal GetDiscountAmount(decimal baseAmount) 
+    public decimal GetDiscountFor(decimal baseAmount) 
         => Type == EDiscountType.Absolute ? Value : baseAmount * PercentageValue;
 }
