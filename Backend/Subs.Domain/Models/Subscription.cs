@@ -16,12 +16,12 @@ public class Subscription
     /// <summary>
     /// Timestamp when the subscription was created.
     /// </summary>
-    public required DateTime CreatedAt { get; set; }
+    public DateTime CreatedAt { get; set; }
 
     /// <summary>
     /// Timestamp when the subscription was last updated.
     /// </summary>
-    public required DateTime UpdatedAt { get; set; }
+    public DateTime UpdatedAt { get; set; }
 
     /// <summary>
     /// The current status of the subscription.
