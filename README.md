@@ -131,17 +131,38 @@ subs/
 
 ---
 
-## ✅ Features entregues (MVP)
-- [x] Cadastro da entidade `SubscriptionOrder`
-- [x] Persistência em PostgreSQL
-- [x] Healthchecks e Swagger
-- [x] Estrutura modular (Api, Worker, Core, Tests)
-- [x] Docker Compose com Postgres
+## Processo de criação do projeto
+### Backend
+A solução de backend foi criada com os seguintes comands:
 
-### Próximos passos
-- [ ] Implementar endpoints CRUD de `SubscriptionOrder`
-- [ ] Publicação/consumo de mensagens no Azure Service Bus
-- [ ] Worker idempotente para atualização de status
-- [ ] Frontend (React + Tailwind)
-- [ ] Testes de integração e E2E
-- [ ] CI/CD no GitHub Actions
+```
+git init
+dotnet new sln -n Subs
+
+dotnet new webapi  -o Order.Api
+dotnet new worker  -o src/Order.Worker
+dotnet new classlib -o src/Order.Core
+dotnet new xunit -o tests/Order.UnitTests
+
+dotnet sln add src/Order.Api/src/Order.Api.csproj
+dotnet sln add src/Order.Worker/src/Order.Worker.csproj
+dotnet sln add src/Order.Core/src/Order.Core.csproj
+dotnet sln add tests/Order.UnitTests/tests/Order.UnitTests.csproj
+
+dotnet add src/Order.Api reference src/Order.Core
+dotnet add src/Order.Worker reference src/Order.Core
+dotnet add tests/Order.UnitTests reference src/Order.Core
+```
+
+É importante notar que a Solução recebeu algumas atualizações e adições de Projetos ao longo do desenvolvimento, como o `Subs.Utils`.
+
+### Frontend
+A criação inicial do projeto foi feita com os seguintes comandos:
+```
+npm create vite@latest Subs.Frontend -- --template react
+cd Subs.Frontend
+npm install
+npm install axios react-router-dom@6 @headlessui/react @heroicons/react
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+```

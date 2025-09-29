@@ -1,13 +1,11 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16
     container_name: subs-postgres
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: pgadmin
-      POSTGRES_DB: subsdb
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
@@ -17,12 +15,48 @@ services:
     image: dpage/pgadmin4
     container_name: subs-pgadmin
     environment:
-      PGADMIN_DEFAULT_EMAIL: admin@admin.com
-      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
     ports:
       - "8080:80"
     depends_on:
       - postgres
+
+  api:
+    build:
+      context: ../Backend
+      dockerfile: Subs.Api/Dockerfile
+    container_name: subs-api
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ConnectionStrings__DefaultConnection=${CONNECTIONSTRINGS__DEFAULTCONNECTION}
+    ports:
+      - "5000:80"
+    depends_on:
+      - postgres
+
+  # worker:
+  #   build:
+  #     context: ../Backend
+  #     dockerfile: Subs.Worker/Dockerfile
+  #   container_name: subs-worker
+  #   environment:
+      # - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      # - ConnectionStrings__DefaultConnection=${CONNECTIONSTRINGS__DEFAULTCONNECTION}
+  #   depends_on:
+  #     - postgres
+
+  frontend:
+    build:
+      context: ../Frontend/Subs.Frontend
+      dockerfile: Dockerfile
+    container_name: subs-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - VITE_API_URL=${VITE_API_URL}
+    depends_on:
+      - api
 
 volumes:
   subs_data:
