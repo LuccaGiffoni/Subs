@@ -1,75 +1,80 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using AutoMapper;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Subs.Core.Data;
-using Subs.Core.Validators;
+using Subs.Domain.DTOs;
 using Subs.Domain.Enums;
+using Subs.Domain.Interfaces.Entities;
 using Subs.Domain.Models;
-using Subs.Utils.Extensions;
 
 namespace Subs.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class SubscriptionsController(SubsDbContext context) : ControllerBase
+public class SubscriptionsController(SubsDbContext context,
+                                     ISubscriptionService subscriptionService,
+                                     IMapper mapper) : ControllerBase
 {
     private readonly SubsDbContext _context = context;
+    private readonly ISubscriptionService _subscriptionService = subscriptionService;
+    private readonly IMapper _mapper = mapper;
 
+    private const int DefaultPageSize = 10;
+    private const int DefaultPage = 1;
+
+    #region | Create
     /// <summary>
     /// Create a new subscription
     /// </summary>
     [HttpPost]
-    public async Task<ActionResult<Subscription>> Create([FromBody] Subscription subscription)
+    public async Task<ActionResult<SubscriptionDto>> Create([FromBody] SubscriptionDto dto)
     {
-        var clientId = subscription.Client.Id;
-        var existingClient = await _context.Clients.FindAsync(clientId);
+        var existingClient = await _context.Clients.FindAsync(dto.ClientId);
+        if (existingClient is null)
+            return BadRequest($"Client with Id {dto.ClientId} does not exist.");
 
-        if (existingClient is not null)
-        {
-            subscription.Client = existingClient;
-        }
-        else
-        {
-            subscription.Client.Id = clientId == Guid.Empty ? Guid.NewGuid() : clientId;
-            _context.Clients.Add(subscription.Client);
-            await _context.SaveChangesAsync();
-        }
+        var subscription = _mapper.Map<Subscription>(dto);
+        subscription.Client = existingClient;
 
-        subscription.Id = Guid.NewGuid();
-        subscription.CreatedAt = subscription.CreatedAt == DateTime.MinValue ? DateTime.UtcNow : subscription.CreatedAt.EnsureUtc();
-        subscription.UpdatedAt = subscription.UpdatedAt == DateTime.MinValue ? DateTime.UtcNow : subscription.UpdatedAt.EnsureUtc();
+        var result = await _subscriptionService.Create(subscription);
 
-        if (subscription.Payment?.Currency != null)
-            subscription.Payment.Currency.Reference = subscription.Payment.Currency.Reference.EnsureUtc();
-
-        var validator = new SubscriptionValidator();
-        var validationResult = await validator.ValidateAsync(subscription);
-        if (!validationResult.IsValid)
-            return BadRequest(validationResult.Errors);
-
-        _context.Subscriptions.Add(subscription);
-        await _context.SaveChangesAsync();
-
-        return CreatedAtAction(nameof(GetById), new { id = subscription.Id }, subscription);
+        return CreatedAtAction(nameof(GetById), new { id = result.Id }, _mapper.Map<SubscriptionDto>(result));
     }
+    #endregion
 
+    #region | Read
     /// <summary>
     /// Get all subscriptions
     /// </summary>
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<Subscription>>> GetAll()
+    public async Task<ActionResult<object>> GetAll([FromQuery] int page = DefaultPage, [FromQuery] int pageSize = DefaultPageSize)
     {
-        var subscriptions = await _context.Subscriptions
+        var query = _context.Subscriptions
             .Include(s => s.Client)
+            .OrderByDescending(s => s.CreatedAt);
+
+        var total = await query.CountAsync();
+        var subscriptions = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .ToListAsync();
 
-        return Ok(subscriptions);
+        var dtos = _mapper.Map<List<SubscriptionDto>>(subscriptions);
+
+        return Ok(new
+        {
+            total,
+            page,
+            pageSize,
+            subscriptions = dtos
+        });
     }
 
     /// <summary>
     /// Get subscription by Id
     /// </summary>
     [HttpGet("{id:guid}")]
-    public async Task<ActionResult<Subscription>> GetById(Guid id)
+    public async Task<ActionResult<SubscriptionDto>> GetById(Guid id)
     {
         var subscription = await _context.Subscriptions
             .Include(s => s.Client)
@@ -78,31 +83,141 @@ public class SubscriptionsController(SubsDbContext context) : ControllerBase
         if (subscription is null)
             return NotFound();
 
-        return Ok(subscription);
+        return Ok(_mapper.Map<SubscriptionDto>(subscription));
     }
 
+    /// <summary>
+    /// Get all subscriptions for a given client
+    /// </summary>
+    [HttpGet("by-client/{clientId:guid}")]
+    public async Task<ActionResult<List<SubscriptionDto>>> GetByClient(Guid clientId)
+    {
+        var subscriptions = await _context.Subscriptions
+            .Where(s => s.Client!.Id == clientId)
+            .Include(s => s.Client)
+            .ToListAsync();
+
+        var dtos = _mapper.Map<List<SubscriptionDto>>(subscriptions);
+
+        return Ok(dtos);
+    }
+
+    /// <summary>
+    /// Get all active subscriptions
+    /// </summary>
+    [HttpGet("active")]
+    public async Task<ActionResult<List<SubscriptionDto>>> GetActive()
+    {
+        var subscriptions = await _context.Subscriptions
+            .Where(s => s.Status == Domain.Enums.EStatus.Active)
+            .Include(s => s.Client)
+            .ToListAsync();
+
+        var dtos = _mapper.Map<List<SubscriptionDto>>(subscriptions);
+
+        return Ok(dtos);
+    }
+
+    #region | History
+    /// <summary>
+    /// Get paginated subscription history
+    /// </summary>
+    [HttpGet("{subscriptionId:guid}/history")]
+    public async Task<ActionResult<object>> GetHistory(
+        Guid subscriptionId,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 10)
+    {
+        var subscription = await _context.Subscriptions.FindAsync(subscriptionId);
+        if (subscription is null)
+            return NotFound();
+
+        var query = _context.SubscriptionsEventHistories
+            .Where(h => h.SubscriptionId == subscriptionId)
+            .OrderByDescending(h => h.CreatedAt);
+
+        var total = await query.CountAsync();
+        var history = await query
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync();
+
+        var dtos = _mapper.Map<List<SubscriptionEventHistoryDto>>(history);
+
+        return Ok(new
+        {
+            total,
+            page,
+            pageSize,
+            history = dtos
+        });
+    }
+    #endregion
+    #endregion
+
+    #region | Update
     /// <summary>
     /// Update a subscription (e.g. status, payment details)
     /// </summary>
     [HttpPut("{id:guid}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] Subscription updated)
+    public async Task<IActionResult> Update(Guid id, [FromBody] SubscriptionDto dto)
     {
         var subscription = await _context.Subscriptions.FindAsync(id);
-
         if (subscription is null)
             return NotFound();
 
-        subscription.Status = updated.Status;
-        subscription.UpdatedAt = DateTime.UtcNow;
-        subscription.Payment = updated.Payment;
-        subscription.Client = updated.Client;
-        subscription.ProductId = updated.ProductId;
-
-        await _context.SaveChangesAsync();
+        var updated = _mapper.Map<Subscription>(dto);
+        await _subscriptionService.Update(subscription, updated);
 
         return NoContent();
     }
 
+    #region | Status Management
+    /// <summary>
+    /// Activate a subscription
+    /// </summary>
+    [HttpPost("{id:guid}/activate")]
+    public async Task<IActionResult> Activate(Guid id)
+    {
+        var subscription = await _context.Subscriptions.FindAsync(id);
+        if (subscription is null)
+            return NotFound();
+
+        var updatedSubscription = await _subscriptionService.UpdateStatus(subscription, EStatus.Active);
+        return Ok(_mapper.Map<SubscriptionDto>(updatedSubscription));
+    }
+
+    /// <summary>
+    /// Suspend a subscription
+    /// </summary>
+    [HttpPost("{id:guid}/suspend")]
+    public async Task<IActionResult> Suspend(Guid id)
+    {
+        var subscription = await _context.Subscriptions.FindAsync(id);
+        if (subscription is null)
+            return NotFound();
+
+        var updatedSubscription = await _subscriptionService.UpdateStatus(subscription, EStatus.Suspended);
+        return Ok(_mapper.Map<SubscriptionDto>(updatedSubscription));
+    }
+
+    /// <summary>
+    /// Cancel a subscription
+    /// </summary>
+    [HttpPost("{id:guid}/cancel")]
+    public async Task<IActionResult> Cancel(Guid id)
+    {
+        var subscription = await _context.Subscriptions.FindAsync(id);
+        if (subscription is null)
+            return NotFound();
+
+        var updatedSubscription = await _subscriptionService.UpdateStatus(subscription, EStatus.Canceled);
+        return Ok(_mapper.Map<SubscriptionDto>(updatedSubscription));
+    }
+    #endregion
+    #endregion
+
+    #region | Delete
     /// <summary>
     /// Delete a subscription
     /// </summary>
@@ -114,94 +229,9 @@ public class SubscriptionsController(SubsDbContext context) : ControllerBase
         if (subscription is null)
             return NotFound();
 
-        _context.Subscriptions.Remove(subscription);
-        await _context.SaveChangesAsync();
+        await _subscriptionService.Delete(subscription);
 
         return NoContent();
     }
-
-    /// <summary>
-    /// Get all subscriptions for a given client
-    /// </summary>
-    [HttpGet("by-client/{clientId:guid}")]
-    public async Task<ActionResult<IEnumerable<Subscription>>> GetByClient(Guid clientId)
-    {
-        var subscriptions = await _context.Subscriptions
-            .Where(s => s.Client.Id == clientId)
-            .Include(s => s.Client)
-            .ToListAsync();
-
-        return Ok(subscriptions);
-    }
-
-    /// <summary>
-    /// Get all active subscriptions
-    /// </summary>
-    [HttpGet("active")]
-    public async Task<ActionResult<IEnumerable<Subscription>>> GetActive()
-    {
-        var subscriptions = await _context.Subscriptions
-            .Where(s => s.Status == Domain.Enums.EStatus.Active)
-            .Include(s => s.Client)
-            .ToListAsync();
-
-        return Ok(subscriptions);
-    }
-
-    /// <summary>
-    /// Activate a subscription
-    /// </summary>
-    /// <param name="id">Subscription's unique identifier</param>
-    /// <returns></returns>
-    [HttpPost("{id:guid}/activate")]
-    public async Task<IActionResult> Activate(Guid id)
-    {
-        var subscription = await _context.Subscriptions.FindAsync(id);
-        if (subscription is null)
-            return NotFound();
-
-        subscription.Status = EStatus.Active;
-        subscription.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-        return Ok(subscription);
-    }
-
-    /// <summary>
-    /// Suspend a subscription
-    /// </summary>
-    /// <param name="id">Subscription's unique identifier</param>
-    /// <returns></returns>
-    [HttpPost("{id:guid}/suspend")]
-    public async Task<IActionResult> Suspend(Guid id)
-    {
-        var subscription = await _context.Subscriptions.FindAsync(id);
-        if (subscription is null)
-            return NotFound();
-
-        subscription.Status = EStatus.Suspended;
-        subscription.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-        return Ok(subscription);
-    }
-
-    /// <summary>
-    /// Cancel a subscription
-    /// </summary>
-    /// <param name="id">Subscription's unique identifier</param>
-    /// <returns></returns>
-    [HttpPost("{id:guid}/cancel")]
-    public async Task<IActionResult> Cancel(Guid id)
-    {
-        var subscription = await _context.Subscriptions.FindAsync(id);
-        if (subscription is null)
-            return NotFound();
-
-        subscription.Status = EStatus.Canceled;
-        subscription.UpdatedAt = DateTime.UtcNow;
-
-        await _context.SaveChangesAsync();
-        return Ok(subscription);
-    }
+    #endregion
 }

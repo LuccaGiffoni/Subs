@@ -31,12 +31,17 @@ public class Subscription
     /// <summary>
     /// Details about the payment method and frequency
     /// </summary>
-    public required Payment Payment { get; set; }
+    public required Payment Payment { get; set; } = new();
 
     /// <summary>
     /// Basic information about the client
     /// </summary>
     public required Client Client { get; set; }
+
+    /// <summary>
+    /// Gets or sets the unique identifier for the client.
+    /// </summary>
+    public Guid ClientId { get; set; }
 
     /// <summary>
     /// Identifier of the product associated with this subscription

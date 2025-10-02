@@ -35,16 +35,16 @@ services:
     depends_on:
       - postgres
 
-  # worker:
-  #   build:
-  #     context: ../Backend
-  #     dockerfile: Subs.Worker/Dockerfile
-  #   container_name: subs-worker
-  #   environment:
-      # - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
-      # - ConnectionStrings__DefaultConnection=${CONNECTIONSTRINGS__DEFAULTCONNECTION}
-  #   depends_on:
-  #     - postgres
+  worker:
+    build:
+      context: ../Backend
+      dockerfile: Subs.Worker/Dockerfile
+    container_name: subs-worker
+    environment:
+      - ASPNETCORE_ENVIRONMENT=${ASPNETCORE_ENVIRONMENT}
+      - ConnectionStrings__DefaultConnection=${CONNECTIONSTRINGS__DEFAULTCONNECTION}
+    depends_on:
+      - postgres
 
   frontend:
     build:
@@ -53,8 +53,6 @@ services:
     container_name: subs-frontend
     ports:
       - "3000:3000"
-    environment:
-      - VITE_API_URL=${VITE_API_URL}
     depends_on:
       - api
 

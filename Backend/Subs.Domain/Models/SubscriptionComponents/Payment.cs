@@ -11,17 +11,17 @@ public class Payment
     /// <summary>
     /// Subscription payment method (e.g., Credit Card, PayPal, Bank Transfer)
     /// </summary>
-    public EPaymentMethod Method { get; set; }
+    public EPaymentMethod Method { get; set; } = EPaymentMethod.Credit;
 
     /// <summary>
     /// Payment frequency (e.g., Monthly, Yearly)
     /// </summary>
-    public EPaymentFrequency Frequency { get; set; }
+    public EPaymentFrequency Frequency { get; set; } = EPaymentFrequency.Bullet;
 
     /// <summary>
     /// Payment amount before any discounts
     /// </summary>
-    public decimal Amount { get; set; }
+    public decimal Amount { get; set; } = 0m;
 
     /// <summary>
     /// Properties related to any discounts applied to the payment

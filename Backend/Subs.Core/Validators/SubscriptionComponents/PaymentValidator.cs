@@ -10,7 +10,8 @@ public class PaymentValidator : AbstractValidator<Payment>
     public PaymentValidator()
     {
         RuleFor(x => x.Frequency)
-            .NotEmpty()
+            .NotNull()
+            .WithMessage("Payment's frequency must not be null.")
             .IsInEnum()
             .WithMessage($"Frequency must be in enum. Options are: {string.Join(", ", EnumExtensions.GetAllNames<EPaymentFrequency>())}");
 

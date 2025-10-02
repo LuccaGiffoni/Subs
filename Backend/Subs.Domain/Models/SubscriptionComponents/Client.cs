@@ -1,4 +1,6 @@
-﻿namespace Subs.Domain.Models.SubscriptionComponents;
+﻿using Subs.Domain.Enums;
+
+namespace Subs.Domain.Models.SubscriptionComponents;
 
 /// <summary>
 /// Represents a client in the subscription system.
@@ -29,4 +31,14 @@ public class Client
     /// Phone number of the client.
     /// </summary>
     public string Phone { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the current status of the operation.
+    /// </summary>
+    public EStatus Status { get; set; }
+
+    /// <summary>
+    /// Gets or sets the collection of subscriptions associated with the current entity.
+    /// </summary>
+    public ICollection<Subscription> Subscriptions { get; set; } = [];
 }

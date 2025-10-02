@@ -16,24 +16,24 @@ public enum EPaymentMethod
     /// <summary>
     /// Credit card payment method
     /// </summary>
-    [Description("Credit Card")]
+    [Description("Credit")]
     Credit,
 
     /// <summary>
     /// Debit card payment method
     /// </summary>
-    [Description("Debit Card")]
+    [Description("Debit")]
     Debit,
 
     /// <summary>
     /// PIX payment method
     /// </summary>
-    [Description("Instantaneous brazilian's payment system")]
+    [Description("PIX")]
     PIX,
 
     /// <summary>
     /// Bank slip payment method
     /// </summary>
-    [Description("Traditional bank slip payment method")]
+    [Description("BankSlip")]
     BankSlip
 }

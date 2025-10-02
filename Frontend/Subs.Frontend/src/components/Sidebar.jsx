@@ -1,9 +1,9 @@
 import { NavLink } from "react-router-dom";
-import { UserGroupIcon, NewspaperIcon } from "@heroicons/react/24/outline";
+import { UserGroupIcon, NewspaperIcon, MapIcon, QueueListIcon } from "@heroicons/react/24/outline";
 
 export default function Sidebar() {
   const navItems = [
-    { name: "Clientes", to: "/clients", icon: UserGroupIcon },
+    { name: "Clients", to: "/clients", icon: UserGroupIcon },
     { name: "Subscriptions", to: "/subscriptions", icon: NewspaperIcon },
   ];
 
